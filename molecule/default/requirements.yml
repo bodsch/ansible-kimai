@@ -1,0 +1,26 @@
+---
+
+- name: snapd
+  src: bodsch.snapd
+  version: 1.2.2
+
+- name: apparmor
+  src: bodsch.apparmor
+  version: 1.0.3
+
+- name: php-fpm
+  src: bodsch.php
+  version: 2.2.0
+
+- name: mariadb
+  src: bodsch.mariadb
+  version: 2.4.0
+
+- name: nginx
+  src: bodsch.nginx
+  version: 0.21.1
+
+- name: composer
+  src: geerlingguy.composer
+
+...

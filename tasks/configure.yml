@@ -1,0 +1,49 @@
+---
+
+- name: merge kimai configuration between defaults and custom
+  ansible.builtin.set_fact:
+    kimai_database: "{{ kimai_defaults_database | combine(kimai_database, recursive=True) }}"
+
+- name: Get MySQL version with non-default credentials
+  community.mysql.mysql_info:
+    login_user: "{{ kimai_database.username }}"
+    login_password: "{{ kimai_database.password }}"
+    login_host: "{{ kimai_database.hostname }}"
+    filter: version
+  register: __db_version
+
+- name: merge kimai configuration between defaults and custom
+  ansible.builtin.set_fact:
+    kimai_database: "{{ kimai_database | add_database_version(__db_version) }}"
+
+- name: create initial setup configuration file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ kimai_install_dir }}/kimai/.env"
+    owner: "{{ kimai_owner }}"
+    group: "{{ kimai_group }}"
+    mode: 0666
+
+- name: install kimai
+  kimai_console:
+    command: install
+    parameters:
+      - --env={{ kimai_env }}
+      - --no-ansi
+      - --no-interaction
+    working_dir: "{{ kimai_install_dir }}/kimai"
+
+- name: install kimai admin user
+  kimai_console:
+    command: user_create
+    parameters:
+      - --env={{ kimai_env }}
+      - --no-ansi
+      - --no-interaction
+      - "{{ kimai_admin_user.username }}"   # username
+      - "{{ kimai_admin_user.email }}"      # email
+      - ROLE_SUPER_ADMIN                    # role
+      - "{{ kimai_admin_user.password }}"   # password
+    working_dir: "{{ kimai_install_dir }}/kimai"
+
+...

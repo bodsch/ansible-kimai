@@ -1,0 +1,18 @@
+---
+
+kimai_install_dir: /var/www/kimai.molecule.lan
+
+kimai_database_rootuser:
+  username: root
+  password: root
+
+kimai_database:
+  username: kimai
+  password: kimai
+  hostname: database
+  port: 3306
+  schema: kimai
+  #server:
+  #  version:
+
+...

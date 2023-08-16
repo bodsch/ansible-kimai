@@ -1,0 +1,86 @@
+---
+
+- name: include OS specific configuration
+  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      paths:
+        - "vars"
+      files:
+        # eg. debian-10 / ubuntu-20 / centos-8 / oraclelinux-8
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version }}.yml"
+        # eg. archlinux-systemd / archlinux-openrc
+        - "{{ ansible_distribution | lower }}-{{ ansible_service_mgr | lower }}.yml"
+        # eg. debian / ubuntu / centos / oraclelinux
+        - "{{ ansible_distribution | lower }}.yml"
+        # eg. redhat / debian
+        - "{{ ansible_os_family | lower }}.yml"
+        - default.yaml
+      skip: true
+
+# - name: get version of installed php
+#   bodsch.core.package_version:
+#     package_name: "php"
+#     state: installed
+#   register: package_version
+#
+# - name: define php version
+#   ansible.builtin.set_fact:
+#     php_version: "{{ package_version.available.full_version }}"
+#     php_major_version: "{{ package_version.available.major_version }}"
+#     php_package_version: "{{ package_version.available.version_string_compressed }}"
+#   when:
+#     - package_version is defined
+#     - package_version.available is defined
+#     - package_version.available.full_version is defined
+#     - package_version.available.major_version is defined
+#     - package_version.available.version_string_compressed is defined
+#
+# - name: assert php_version for kimai {{ kimai_main_version }} ({{ kimai_version }})
+#   ansible.builtin.assert:
+#     that:
+#       - php_version is defined
+#       - php_version is version_compare('8.1', '>=')
+#     msg: "This role only works with PHP >= 8.1 .. found: {{ php_version }}"
+#   when:
+#     - kimai_main_version is version('2', '==', strict=False)
+
+- name: merge dependencies between defaults and custom
+  ansible.builtin.set_fact:
+    kimai_dependencies: "{{ kimai_dependencies + kimai_packages }}"
+  when:
+    - kimai_dependencies | count > 0 or
+      kimai_packages | count > 0
+
+# - name: get installed database package name
+#   bodsch.core.package_version:
+#     package_name: "{{ _kimai_package_mariadb_clients }}"
+#     state: installed
+#   register: package_version
+#
+# - name: remove mariadb-client-core from dependency list if it already installed
+#   ansible.builtin.set_fact:
+#     kimai_dependencies: "{{ kimai_dependencies | reject('search', 'default-mysql-client-core') | list }}"
+#   when:
+#     - package_version is defined
+#     - package_version.available is defined
+#     - package_version.available.full_version is defined
+
+# - name: merge dependencies between defaults and custom for enabled kimai modules
+#   ansible.builtin.set_fact:
+#     kimai_modules_enabled: "{{ kimai_defaults_modules_enabled + kimai_modules_enabled }}"
+#
+# - name: merge kimai configuration between defaults and custom
+#   ansible.builtin.set_fact:
+#     kimai_groups: "{{ kimai_defaults_groups | combine(kimai_groups, recursive=True) }}"
+#     kimai_authentication: "{{ kimai_defaults_authentication | combine(kimai_authentication, recursive=True) }}"
+#     kimai_resources: "{{ kimai_defaults_resources | combine(kimai_resources, recursive=True) }}"
+#     kimai_icingadb: "{{ kimai_defaults_icingadb | combine(kimai_icingadb, recursive=True) }}"
+#     kimai_php_daemon: "{{ kimai_defaults_php_daemon | combine(kimai_php_daemon, recursive=True) }}"
+
+- name: install requirements
+  ansible.builtin.package:
+    name: "{{ kimai_dependencies }}"
+    state: present
+
+...

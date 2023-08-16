@@ -1,0 +1,63 @@
+---
+
+kimai_main_version: "{{ kimai_version[0:1] }}"
+
+kimai_install_path: /usr/local/opt/kimai/{{ kimai_version }}
+
+kimai_delegate_to: localhost
+
+kimai_local_tmp_directory: "{{
+  lookup('env', 'CUSTOM_LOCAL_TMP_DIRECTORY') |
+  default(lookup('env', 'HOME') ~ '/.cache/ansible/kimai', true) }}/{{ kimai_version }}"
+
+kimai_cache_directory: /var/cache/ansible/kimai
+
+kimai_remote_tmp_directory: "{{ kimai_cache_directory }}/{{ kimai_version }}"
+
+kimai_dependencies:
+  - python3-pip
+  - php-curl
+  - php-mbstring
+  - php-zip
+  - php-intl
+  - php-gd
+  - php-mysql
+
+kimai_python_requirements:
+  - name: mysqlclient
+
+kimai_python_build_packages:
+  - libmariadb-dev
+  - python3-dev
+  - python3-wheel
+  - gcc
+
+kimai_packages: []
+
+kimai_defaults_database:
+  username: kimai
+  password: ""
+  hostname: "127.0.0.1"
+  port: 3306
+  schema: kimai
+  server:
+    version: ""
+
+kimai_defaults_release:
+  # https://github.com/kimai/kimai/archive/refs/tags/2.0.29.tar.gz
+  download_url: https://github.com/kimai/kimai
+  file: "{{ kimai_version }}.tar.gz"
+  checksum: ""
+  binary: "kimai"
+
+# ---------------------------------------------
+
+go_arch_map:
+  x86_64: 'amd64'
+  aarch64: 'arm64'
+  armv7l: 'armv7'
+  armv6l: 'armv6'
+
+system_architecture: "{{ go_arch_map[ansible_architecture] | default(ansible_architecture) }}"
+
+...

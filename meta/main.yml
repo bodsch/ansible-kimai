@@ -1,0 +1,25 @@
+---
+
+galaxy_info:
+  role_name: kimai
+  namespace: bodsch
+
+  author: Bodo Schulz
+  description: installs and configure kimai
+
+  license: Apache
+  min_ansible_version: "2.10"
+
+  platforms:
+    - name: ArchLinux
+    - name: Debian
+      versions:
+        # 10
+        - buster
+        - bullseye
+
+  galaxy_tags: []
+
+dependencies: []
+
+...

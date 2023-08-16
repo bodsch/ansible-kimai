@@ -1,0 +1,208 @@
+---
+
+# get file or directory stats
+- name: detect installed kimai
+  ansible.builtin.stat:
+    path: "{{ kimai_install_dir }}/kimai-{{ kimai_version }}/src/Kernel.php"
+    get_checksum: false
+    get_md5: false
+    get_mime: false
+    get_attributes: false
+  register: __stat_present_kimai
+  changed_when: not __stat_present_kimai.stat.exists
+
+- name: detect type of {{ kimai_install_dir }}/kimai
+  ansible.builtin.stat:
+    path: "{{ kimai_install_dir }}/kimai"
+    get_checksum: false
+    get_md5: false
+    # get_mime: false
+    get_attributes: false
+  register: __stat_share_kimai
+
+# this should be a link!
+- name: remove directory '{{ kimai_install_dir }}'
+  ansible.builtin.file:
+    state: absent
+    path: "{{ kimai_install_dir }}/kimai"
+  when:
+    - __stat_share_kimai.stat is defined
+    - __stat_share_kimai.stat.isdir | default('true')
+
+- name: install kimai
+  when:
+    - not __stat_present_kimai.stat.exists
+  block:
+    - name: create remote temp directory
+      ansible.builtin.file:
+        path: "{{ kimai_remote_tmp_directory }}"
+        state: directory
+        mode: 0755
+      when:
+        - not kimai_direct_download
+
+    # - name: download kimai version {{ kimai_version }}
+    #   delegate_to: localhost
+    #   become: false
+    #   ansible.builtin.get_url:
+    #     url: https://github.com/Icinga/kimai/archive/v{{ kimai_version }}.tar.gz
+    #     dest: "{{ kimai_local_tmp_directory }}/kimai-v{{ kimai_version }}.tar.gz"
+    #     mode: 0660
+    #   register: _download_artefact
+    #   until: _download_artefact is succeeded
+    #   retries: 5
+    #   delay: 2
+    #   check_mode: false
+
+    - name: deploy application archiv
+      ansible.builtin.copy:
+        src: "{{ kimai_local_tmp_directory }}/{{ kimai_release.file }}"
+        dest: "{{ kimai_remote_tmp_directory }}/"
+        mode: 0700
+
+    - name: create remote install directory
+      ansible.builtin.file:
+        state: directory
+        path: "{{ kimai_install_dir }}"
+        owner: "{{ kimai_owner }}"
+        group: "{{ kimai_group }}"
+        mode: 0755
+
+    - name: extract kimai archive
+      ansible.builtin.unarchive:
+        src: "{{ kimai_remote_tmp_directory }}/{{ kimai_version }}.tar.gz"
+        dest: "{{ kimai_install_dir }}/"
+        owner: "{{ kimai_owner }}"
+        group: "{{ kimai_group }}"
+        mode: 0755
+        remote_src: true
+      #notify:
+      #  - restart php-fpm
+
+  rescue:
+    # - name: remove installation directory
+    #   file:
+    #     state: absent
+    #     path: "{{ kimai_install_dir }}"
+    #
+    # - name: remove link to installation directory
+    #   file:
+    #     state: absent
+    #     path: '/usr/share/kimai-{{ kimai_version }}'
+
+    - name: exit with fail
+      ansible.builtin.fail:
+        msg: "Error while installing of kimai!"
+
+- name: create link for kimai-version {{ kimai_version }} to {{ kimai_install_dir }}/kimai
+  ansible.builtin.file:
+    src: '{{ kimai_install_dir }}/kimai-{{ kimai_version }}'
+    dest: '{{ kimai_install_dir }}/kimai'
+    owner: "{{ kimai_owner }}"
+    group: "{{ kimai_group }}"
+    mode: 0755
+    state: link
+    force: true
+  #notify:
+  #  - restart php-fpm
+
+- name: detect entrypoints.json
+  ansible.builtin.stat:
+    path: "{{ kimai_install_dir }}/kimai/public/bundles/tabler/entrypoints.json"
+    get_checksum: false
+    get_md5: false
+    # get_mime: false
+    get_attributes: false
+  register: __stat_kimai_entrypoints
+
+- name: update composer
+  community.general.composer:
+    command: update
+    working_dir: "{{ kimai_install_dir }}/kimai"
+  when:
+    - __stat_kimai_entrypoints is defined
+    - not __stat_kimai_entrypoints.stat.exists | default('false')
+
+- name: download and installs all libs and dependencies outlined in the {{ kimai_install_dir }}
+  community.general.composer:
+    command: install
+    arguments: --optimize-autoloader --no-interaction
+    working_dir: "{{ kimai_install_dir }}/kimai"
+  when:
+    - __stat_kimai_entrypoints is defined
+    - not __stat_kimai_entrypoints.stat.exists | default('false')
+
+- name: create custom fact file
+  bodsch.core.facts:
+    name: kimai
+    facts:
+      version: "{{ kimai_version }}"
+
+- name: python support
+  tags:
+    - kimai_install
+  when:
+    - kimai_python_requirements is defined
+    - kimai_python_requirements | length > 0
+  block:
+    - name: create pip requirements file
+      bodsch.core.pip_requirements:
+        name: kimai
+        requirements: "{{ kimai_python_requirements }}"
+      register: pip_requirements
+
+    - name: fail if pip not installed
+      ansible.builtin.fail:
+        msg: python pip is not installed
+      when:
+        - not pip_requirements.pip.present
+
+    - name: install docker python packages  # noqa no-handler
+      ansible.builtin.pip:
+        state: present
+        requirements: "{{ pip_requirements.requirements_file }}"
+        extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_python.version) | default(omit) }}"
+      register: pip_install
+      ignore_errors: true
+      no_log: true
+      when:
+        - pip_requirements.requirements_file is defined
+        - pip_requirements.changed
+
+    - name: first run is failed, try with build
+      when:
+        - pip_install is defined
+        - pip_install.failed is defined
+        - pip_install.failed
+        - kimai_python_build_packages | default([]) | count > 0
+      block:
+        - name: install build essentials
+          ansible.builtin.package:
+            name: "{{ kimai_python_build_packages }}"
+            state: present
+
+        - name: ensure python bindings for kimai packages 2nd
+          ansible.builtin.pip:
+            state: present
+            requirements: "{{ pip_requirements.requirements_file }}"
+            extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_python.version) | default(omit) }}"
+
+        - name: uninstall build essentials
+          ansible.builtin.package:
+            name: "{{ kimai_python_build_packages }}"
+            state: absent
+
+    - name: do facts module to get latest information
+      ansible.builtin.setup:
+  rescue:
+    - name: remove python requirements file
+      bodsch.core.pip_requirements:
+        name: kimai
+        requirements: "{{ kimai_python_requirements }}"
+        state: absent
+
+    - name: exit with fail
+      ansible.builtin.fail:
+        msg: Sorry, but a serious error occurred when installing the required Python packages.
+
+...
