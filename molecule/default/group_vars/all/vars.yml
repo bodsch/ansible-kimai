@@ -1,6 +1,6 @@
 ---
 
-kimai_install_dir: /var/www/kimai.molecule.lan
+kimai_install_base_directory: /var/www/kimai.molecule.lan
 
 kimai_database_rootuser:
   username: root

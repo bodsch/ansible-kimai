@@ -102,57 +102,35 @@ def get_vars(host):
 
 def local_facts(host):
     """
-      return local facts
+        return local fact
     """
-    return host.ansible("setup").get("ansible_facts").get("ansible_local").get("kimai")
+    return host.ansible("setup").get("ansible_facts").get("ansible_local").get("php_fpm")
 
 
-def test_directories(host, get_vars):
+def test_service(host):
+    """
+        is service running and enabled
+    """
+    service = host.service(local_facts(host).get("daemon"))
 
-    base_dir = get_vars.get("kimai_install_base_directory")
-    version = local_facts(host).get("version")
-
-    dirs = [
-        base_dir,
-        f"{base_dir}/kimai-{version}",
-        f"{base_dir}/kimai/bin",
-        f"{base_dir}/kimai/config",
-        f"{base_dir}/kimai/vendor/",
-        f"{base_dir}/kimai/var/cache",
-        f"{base_dir}/kimai/var/cache/prod",
-    ]
-
-    #if 'latest' in install_dir:
-    #    install_dir = install_dir.replace('latest', version)
-
-    for _dir in dirs:
-        f = host.file(_dir)
-        assert f.is_directory
+    assert service.is_enabled
+    assert service.is_running
 
 
-def test_files(host, get_vars):
+def test_fpm_pools(host, get_vars):
+    """
+        test sockets
+    """
+    for i in host.socket.get_listening_sockets():
+        print(i)
 
-    base_dir = get_vars.get("kimai_install_base_directory")
+    distribution = host.system_info.distribution
+    release = host.system_info.release
 
-    files = [
-        f"{base_dir}/kimai/bin/console",
-        f"{base_dir}/kimai/config/routes.yaml",
-        f"{base_dir}/kimai/config/services.yaml",
-        f"{base_dir}/kimai/config/preload.php",
-        f"{base_dir}/kimai/vendor/autoload.php",
-        f"{base_dir}/kimai/var/cache/prod/App_KernelProdContainer.php",
-    ]
+    socket_name = "/run/php/worker-01.sock"
 
-    for _file in files:
-        f = host.file(_file)
-        assert f.is_file
+    f = host.file(socket_name)
+    assert f.exists
 
-
-def test_links(host, get_vars):
-
-    base_dir = get_vars.get("kimai_install_base_directory")
-
-    install_dir = f"{base_dir}/kimai"
-
-    f = host.file(install_dir)
-    assert f.is_symlink
+    if not (distribution == 'ubuntu' and release == '18.04'):
+        assert host.socket(f"unix://{socket_name}").is_listening

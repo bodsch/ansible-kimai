@@ -6,7 +6,7 @@ kimai_direct_download: false
 
 kimai_release: {}
 
-kimai_install_dir: /var/www
+kimai_install_base_directory: /var/www
 
 kimai_owner: www-data
 kimai_group: www-data
@@ -18,18 +18,18 @@ kimai_database:
   # port: 3306
   # schema: kimai
   server:
-    version:
+    version: ""
 
 kimai_env: prod
 
 kimai_mailer:
-  from: ""
-  url: "null://null"
+  from: kimai@test.tld
+  url: null://null
 
 kimai_admin_user:
   username: admin
   password: admin0815
-  email: admin@foo.bar
+  email: admin@test.tld
 
 kimai_secret: change_this_to_something_unique
 

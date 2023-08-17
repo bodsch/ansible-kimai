@@ -1,9 +1,35 @@
 ---
 
+- name: merge dependencies between defaults and custom
+  ansible.builtin.set_fact:
+    kimai_dependencies: "{{ kimai_dependencies + kimai_packages }}"
+  when:
+    - kimai_dependencies | count > 0 or
+      kimai_packages | count > 0
+
+# - name: get installed database package name
+#   bodsch.core.package_version:
+#     package_name: "{{ _kimai_package_mariadb_clients }}"
+#     state: installed
+#   register: package_version
+#
+# - name: remove mariadb-client-core from dependency list if it already installed
+#   ansible.builtin.set_fact:
+#     kimai_dependencies: "{{ kimai_dependencies | reject('search', 'default-mysql-client-core') | list }}"
+#   when:
+#     - package_version is defined
+#     - package_version.available is defined
+#     - package_version.available.full_version is defined
+
+- name: install dependencies
+  ansible.builtin.package:
+    name: "{{ kimai_dependencies }}"
+    state: present
+
 # get file or directory stats
 - name: detect installed kimai
   ansible.builtin.stat:
-    path: "{{ kimai_install_dir }}/kimai-{{ kimai_version }}/src/Kernel.php"
+    path: "{{ kimai_install_base_directory }}/kimai-{{ kimai_version }}/src/Kernel.php"
     get_checksum: false
     get_md5: false
     get_mime: false
@@ -11,9 +37,9 @@
   register: __stat_present_kimai
   changed_when: not __stat_present_kimai.stat.exists
 
-- name: detect type of {{ kimai_install_dir }}/kimai
+- name: detect type of {{ kimai_install_base_directory }}/kimai
   ansible.builtin.stat:
-    path: "{{ kimai_install_dir }}/kimai"
+    path: "{{ kimai_install_base_directory }}/kimai"
     get_checksum: false
     get_md5: false
     # get_mime: false
@@ -21,10 +47,10 @@
   register: __stat_share_kimai
 
 # this should be a link!
-- name: remove directory '{{ kimai_install_dir }}'
+- name: remove directory '{{ kimai_install_base_directory }}'
   ansible.builtin.file:
     state: absent
-    path: "{{ kimai_install_dir }}/kimai"
+    path: "{{ kimai_install_base_directory }}/kimai"
   when:
     - __stat_share_kimai.stat is defined
     - __stat_share_kimai.stat.isdir | default('true')
@@ -41,19 +67,6 @@
       when:
         - not kimai_direct_download
 
-    # - name: download kimai version {{ kimai_version }}
-    #   delegate_to: localhost
-    #   become: false
-    #   ansible.builtin.get_url:
-    #     url: https://github.com/Icinga/kimai/archive/v{{ kimai_version }}.tar.gz
-    #     dest: "{{ kimai_local_tmp_directory }}/kimai-v{{ kimai_version }}.tar.gz"
-    #     mode: 0660
-    #   register: _download_artefact
-    #   until: _download_artefact is succeeded
-    #   retries: 5
-    #   delay: 2
-    #   check_mode: false
-
     - name: deploy application archiv
       ansible.builtin.copy:
         src: "{{ kimai_local_tmp_directory }}/{{ kimai_release.file }}"
@@ -63,7 +76,7 @@
     - name: create remote install directory
       ansible.builtin.file:
         state: directory
-        path: "{{ kimai_install_dir }}"
+        path: "{{ kimai_install_base_directory }}"
         owner: "{{ kimai_owner }}"
         group: "{{ kimai_group }}"
         mode: 0755
@@ -71,44 +84,44 @@
     - name: extract kimai archive
       ansible.builtin.unarchive:
         src: "{{ kimai_remote_tmp_directory }}/{{ kimai_version }}.tar.gz"
-        dest: "{{ kimai_install_dir }}/"
+        dest: "{{ kimai_install_base_directory }}/"
         owner: "{{ kimai_owner }}"
         group: "{{ kimai_group }}"
         mode: 0755
         remote_src: true
-      #notify:
-      #  - restart php-fpm
+      notify:
+        - restart php-fpm
 
   rescue:
-    # - name: remove installation directory
-    #   file:
-    #     state: absent
-    #     path: "{{ kimai_install_dir }}"
-    #
-    # - name: remove link to installation directory
-    #   file:
-    #     state: absent
-    #     path: '/usr/share/kimai-{{ kimai_version }}'
+    - name: remove installation directory
+      file:
+        state: absent
+        path: "{{ kimai_install_base_directory }}/kimai-{{ kimai_version }}"
+
+    - name: remove link to installation directory
+      file:
+        state: absent
+        path: "{{ kimai_install_base_directory }}/kimai"
 
     - name: exit with fail
       ansible.builtin.fail:
         msg: "Error while installing of kimai!"
 
-- name: create link for kimai-version {{ kimai_version }} to {{ kimai_install_dir }}/kimai
+- name: create link for kimai-version {{ kimai_version }} to {{ kimai_install_base_directory }}/kimai
   ansible.builtin.file:
-    src: '{{ kimai_install_dir }}/kimai-{{ kimai_version }}'
-    dest: '{{ kimai_install_dir }}/kimai'
+    src: '{{ kimai_install_base_directory }}/kimai-{{ kimai_version }}'
+    dest: '{{ kimai_install_base_directory }}/kimai'
     owner: "{{ kimai_owner }}"
     group: "{{ kimai_group }}"
     mode: 0755
     state: link
     force: true
-  #notify:
-  #  - restart php-fpm
+  notify:
+    - restart php-fpm
 
 - name: detect entrypoints.json
   ansible.builtin.stat:
-    path: "{{ kimai_install_dir }}/kimai/public/bundles/tabler/entrypoints.json"
+    path: "{{ kimai_install_base_directory }}/kimai/public/bundles/tabler/entrypoints.json"
     get_checksum: false
     get_md5: false
     # get_mime: false
@@ -118,16 +131,16 @@
 - name: update composer
   community.general.composer:
     command: update
-    working_dir: "{{ kimai_install_dir }}/kimai"
+    working_dir: "{{ kimai_install_base_directory }}/kimai"
   when:
     - __stat_kimai_entrypoints is defined
     - not __stat_kimai_entrypoints.stat.exists | default('false')
 
-- name: download and installs all libs and dependencies outlined in the {{ kimai_install_dir }}
+- name: download and installs all libs and dependencies outlined in the {{ kimai_install_base_directory }}
   community.general.composer:
     command: install
     arguments: --optimize-autoloader --no-interaction
-    working_dir: "{{ kimai_install_dir }}/kimai"
+    working_dir: "{{ kimai_install_base_directory }}/kimai"
   when:
     - __stat_kimai_entrypoints is defined
     - not __stat_kimai_entrypoints.stat.exists | default('false')

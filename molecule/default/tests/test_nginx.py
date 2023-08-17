@@ -100,59 +100,21 @@ def get_vars(host):
     return result
 
 
-def local_facts(host):
+def test_service(host):
     """
-      return local facts
+        is service running and enabled
     """
-    return host.ansible("setup").get("ansible_facts").get("ansible_local").get("kimai")
+    service = host.service("nginx")
+
+    assert service.is_enabled
+    assert service.is_running
 
 
-def test_directories(host, get_vars):
+def test_fpm_pools(host, get_vars):
+    """
+        test sockets
+    """
+    for i in host.socket.get_listening_sockets():
+        print(i)
 
-    base_dir = get_vars.get("kimai_install_base_directory")
-    version = local_facts(host).get("version")
-
-    dirs = [
-        base_dir,
-        f"{base_dir}/kimai-{version}",
-        f"{base_dir}/kimai/bin",
-        f"{base_dir}/kimai/config",
-        f"{base_dir}/kimai/vendor/",
-        f"{base_dir}/kimai/var/cache",
-        f"{base_dir}/kimai/var/cache/prod",
-    ]
-
-    #if 'latest' in install_dir:
-    #    install_dir = install_dir.replace('latest', version)
-
-    for _dir in dirs:
-        f = host.file(_dir)
-        assert f.is_directory
-
-
-def test_files(host, get_vars):
-
-    base_dir = get_vars.get("kimai_install_base_directory")
-
-    files = [
-        f"{base_dir}/kimai/bin/console",
-        f"{base_dir}/kimai/config/routes.yaml",
-        f"{base_dir}/kimai/config/services.yaml",
-        f"{base_dir}/kimai/config/preload.php",
-        f"{base_dir}/kimai/vendor/autoload.php",
-        f"{base_dir}/kimai/var/cache/prod/App_KernelProdContainer.php",
-    ]
-
-    for _file in files:
-        f = host.file(_file)
-        assert f.is_file
-
-
-def test_links(host, get_vars):
-
-    base_dir = get_vars.get("kimai_install_base_directory")
-
-    install_dir = f"{base_dir}/kimai"
-
-    f = host.file(install_dir)
-    assert f.is_symlink
+    assert host.socket("tcp://0.0.0.0:80").is_listening

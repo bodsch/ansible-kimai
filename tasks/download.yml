@@ -108,28 +108,4 @@
       ansible.builtin.fail:
         msg: A serious error occurred when downloading the archive.
 
-# - name: detect extracted binary
-#   become: false
-#   delegate_to: "{{ kimai_delegate_to }}"
-#   run_once: "{{ 'false' if kimai_direct_download else 'true' }}"
-#   ansible.builtin.stat:
-#     path: "{{ kimai_local_tmp_directory }}/{{ kimai_release.binary }}"
-#   register: stat_kimai_binary
-#
-# - name: extract kimai archive
-#   become: false
-#   delegate_to: "{{ kimai_delegate_to }}"
-#   run_once: "{{ 'false' if kimai_direct_download else 'true' }}"
-#   ansible.builtin.unarchive:
-#     src: "{{ kimai_local_tmp_directory }}/{{ kimai_release.file }}"
-#     dest: "{{ kimai_local_tmp_directory }}/"
-#     copy: false
-#     #extra_opts:
-#     #  - --strip-components=1
-#   when:
-#     - stat_kimai_binary.stat is defined
-#     - not stat_kimai_binary.stat.exists | default('false')
-
-
-
 ...

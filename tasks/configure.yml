@@ -19,7 +19,7 @@
 - name: create initial setup configuration file
   ansible.builtin.template:
     src: env.j2
-    dest: "{{ kimai_install_dir }}/kimai/.env"
+    dest: "{{ kimai_install_base_directory }}/kimai/.env"
     owner: "{{ kimai_owner }}"
     group: "{{ kimai_group }}"
     mode: 0666
@@ -31,7 +31,7 @@
       - --env={{ kimai_env }}
       - --no-ansi
       - --no-interaction
-    working_dir: "{{ kimai_install_dir }}/kimai"
+    working_dir: "{{ kimai_install_base_directory }}/kimai"
 
 - name: install kimai admin user
   kimai_console:
@@ -44,6 +44,15 @@
       - "{{ kimai_admin_user.email }}"      # email
       - ROLE_SUPER_ADMIN                    # role
       - "{{ kimai_admin_user.password }}"   # password
-    working_dir: "{{ kimai_install_dir }}/kimai"
+    working_dir: "{{ kimai_install_base_directory }}/kimai"
+
+- name: change rights for var directory
+  ansible.builtin.file:
+    state: directory
+    path: "{{ kimai_install_base_directory }}/kimai/var"
+    owner: "{{ kimai_owner }}"
+    group: "{{ kimai_group }}"
+    mode: 0755
+    recurse: true
 
 ...

@@ -30,7 +30,7 @@ nginx_vhosts:
     listen:
       - 80
 
-    root: "{{ kimai_install_dir }}/kimai/public"
+    root: "{{ kimai_install_base_directory }}/kimai/public"
     index:
       - index.php
 
