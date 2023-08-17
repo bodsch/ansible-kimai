@@ -56,11 +56,43 @@ If you want to use something stable, please use a [Tagged Version](https://githu
 
 ---
 
-Please read the following documention for configuration points.
 
+## Configuration
 
-## Documentation
+```yaml
+kimai_version: 2.0.29
 
+kimai_direct_download: false
+
+kimai_release: {}
+
+kimai_install_base_directory: /var/www
+
+kimai_owner: www-data
+kimai_group: www-data
+
+kimai_database:
+  # username: kimai
+  # password:
+  # hostname:
+  # port: 3306
+  # schema: kimai
+  server:
+    version: ""
+
+kimai_env: prod
+
+kimai_mailer:
+  from: kimai@test.tld
+  url: null://null
+
+kimai_admin_user:
+  username: admin
+  password: admin0815
+  email: admin@test.tld
+
+kimai_secret: change_this_to_something_unique
+```
 
 ----
 
