@@ -40,9 +40,9 @@ class KimaiConsole(object):
     def run(self):
         """
         """
-        _failed = True
-        _changed = False
-        _msg = "initial message"
+        # _failed = True
+        # _changed = False
+        # _msg = "initial message"
 
         self._console = os.path.join(self.working_dir, 'bin', 'console')
 
@@ -179,8 +179,6 @@ class KimaiConsole(object):
             msg=_msg
         )
 
-
-
     def __exec(self, commands, check_rc=True):
         """
           execute shell program
@@ -278,4 +276,3 @@ Help:
 
     bin/console list --raw
 """
-

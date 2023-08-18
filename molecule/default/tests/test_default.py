@@ -122,8 +122,8 @@ def test_directories(host, get_vars):
         f"{base_dir}/kimai/var/cache/prod",
     ]
 
-    #if 'latest' in install_dir:
-    #    install_dir = install_dir.replace('latest', version)
+    # if 'latest' in install_dir:
+    #     install_dir = install_dir.replace('latest', version)
 
     for _dir in dirs:
         f = host.file(_dir)

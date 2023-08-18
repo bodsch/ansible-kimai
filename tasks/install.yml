@@ -94,12 +94,12 @@
 
   rescue:
     - name: remove installation directory
-      file:
+      ansible.builtin.file:
         state: absent
         path: "{{ kimai_install_base_directory }}/kimai-{{ kimai_version }}"
 
     - name: remove link to installation directory
-      file:
+      ansible.builtin.file:
         state: absent
         path: "{{ kimai_install_base_directory }}/kimai"
 

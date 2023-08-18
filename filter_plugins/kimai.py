@@ -54,21 +54,17 @@ class FilterModule(object):
             release: 14
             suffix: MariaDB-1:10
         """
-        display.v(f"add_database_version(self, {data}, {dba_version})")
+        # display.v(f"add_database_version(self, {data}, {dba_version})")
 
         version_data = dba_version.get("version")
 
-
-        is_mariadb = False
         _version = f"{version_data.get('major')}.{version_data.get('minor')}.{version_data.get('release')}"
 
         if "mariadb" in version_data.get("suffix").lower():
-            is_mariadb = True
-
             data["server"]["version"] = f"mariadb-{_version}"
         else:
             data["server"]["version"] = f"{_version}"
 
-        display.v(f"= return : {data}")
+        # display.v(f"= return : {data}")
 
         return data

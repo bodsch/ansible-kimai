@@ -33,4 +33,8 @@ kimai_admin_user:
 
 kimai_secret: change_this_to_something_unique
 
+kimai_php_daemon:
+  restart: true
+  name: "{{ php_fpm_daemon }}"
+
 ...

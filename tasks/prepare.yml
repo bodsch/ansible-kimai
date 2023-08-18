@@ -18,31 +18,31 @@
         - default.yaml
       skip: true
 
-# - name: get version of installed php
-#   bodsch.core.package_version:
-#     package_name: "php"
-#     state: installed
-#   register: package_version
-#
-# - name: define php version
-#   ansible.builtin.set_fact:
-#     php_version: "{{ package_version.available.full_version }}"
-#     php_major_version: "{{ package_version.available.major_version }}"
-#     php_package_version: "{{ package_version.available.version_string_compressed }}"
-#   when:
-#     - package_version is defined
-#     - package_version.available is defined
-#     - package_version.available.full_version is defined
-#     - package_version.available.major_version is defined
-#     - package_version.available.version_string_compressed is defined
-#
-# - name: assert php_version for kimai {{ kimai_main_version }} ({{ kimai_version }})
-#   ansible.builtin.assert:
-#     that:
-#       - php_version is defined
-#       - php_version is version_compare('8.1', '>=')
-#     msg: "This role only works with PHP >= 8.1 .. found: {{ php_version }}"
-#   when:
-#     - kimai_main_version is version('2', '==', strict=False)
+- name: get version of installed php
+  bodsch.core.package_version:
+    package_name: "php"
+    state: installed
+  register: package_version
+
+- name: define php version
+  ansible.builtin.set_fact:
+    php_version: "{{ package_version.available.full_version }}"
+    php_major_version: "{{ package_version.available.major_version }}"
+    php_package_version: "{{ package_version.available.version_string_compressed }}"
+  when:
+    - package_version is defined
+    - package_version.available is defined
+    - package_version.available.full_version is defined
+    - package_version.available.major_version is defined
+    - package_version.available.version_string_compressed is defined
+
+- name: assert php_version for kimai {{ kimai_main_version }} ({{ kimai_version }})
+  ansible.builtin.assert:
+    that:
+      - php_version is defined
+      - php_version is version_compare('8.1', '>=')
+    msg: "This role only works with PHP >= 8.1 .. found: {{ php_version }}"
+  when:
+    - kimai_main_version is version('2', '==', strict=False)
 
 ...
