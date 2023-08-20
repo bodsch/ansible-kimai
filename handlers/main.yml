@@ -5,6 +5,6 @@
     name: "{{ kimai_php_daemon.name }}"
     state: restarted
   when:
-    - icingaweb_php_daemon.restart
+    - kimai_php_daemon.restart
 
 ...
