@@ -25,11 +25,13 @@ kimai_dependencies:
 
 kimai_python_requirements:
   - name: mysqlclient
+    version: 2.2.0
 
 kimai_python_build_packages:
   - libmariadb-dev
   - python3-dev
   - python3-wheel
+  - python3-pkgconfig
   - gcc
 
 kimai_packages: []
