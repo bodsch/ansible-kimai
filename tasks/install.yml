@@ -208,11 +208,11 @@
     - name: do facts module to get latest information
       ansible.builtin.setup:
   rescue:
-    # - name: remove python requirements file
-    #   bodsch.core.pip_requirements:
-    #     name: kimai
-    #     requirements: "{{ kimai_python_requirements }}"
-    #     state: absent
+    - name: remove python requirements file
+      bodsch.core.pip_requirements:
+        name: kimai
+        requirements: "{{ kimai_python_requirements }}"
+        state: absent
 
     - name: exit with fail
       ansible.builtin.fail:
