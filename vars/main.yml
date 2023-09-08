@@ -25,7 +25,7 @@ kimai_dependencies:
 
 kimai_python_requirements:
   - name: mysqlclient
-    version: 2.2.0
+    # version: 2.2.0
 
 kimai_python_build_packages:
   - libmariadb-dev

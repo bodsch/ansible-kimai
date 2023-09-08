@@ -6,7 +6,7 @@
 
 - name: apparmor
   src: bodsch.apparmor
-  version: 1.0.3
+  version: 2.0.0
 
 - name: php-fpm
   src: bodsch.php
@@ -18,9 +18,10 @@
 
 - name: nginx
   src: bodsch.nginx
-  version: 0.21.1
+  version: 0.22.1
 
 - name: composer
   src: geerlingguy.composer
+  version: 1.9.2
 
 ...
