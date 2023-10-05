@@ -2,7 +2,6 @@
 
 galaxy_info:
   role_name: kimai
-  namespace: bodsch
 
   author: Bodo Schulz
   description: installs and configure kimai
