@@ -7,15 +7,15 @@ galaxy_info:
   description: installs and configure kimai
 
   license: Apache
-  min_ansible_version: "2.10"
+  min_ansible_version: "2.9"
 
   platforms:
-    - name: ArchLinux
     - name: Debian
       versions:
         # 10
         - buster
         - bullseye
+        - bookworm
 
   galaxy_tags: []
 
