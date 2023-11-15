@@ -31,7 +31,7 @@
   ansible.builtin.stat:
     path: "{{ kimai_install_base_directory }}/kimai-{{ kimai_version }}/src/Kernel.php"
     get_checksum: false
-    get_md5: false
+    get_checksum: false
     get_mime: false
     get_attributes: false
   register: __stat_present_kimai
@@ -41,7 +41,7 @@
   ansible.builtin.stat:
     path: "{{ kimai_install_base_directory }}/kimai"
     get_checksum: false
-    get_md5: false
+    get_checksum: false
     # get_mime: false
     get_attributes: false
   register: __stat_share_kimai
@@ -123,7 +123,7 @@
   ansible.builtin.stat:
     path: "{{ kimai_install_base_directory }}/kimai/public/bundles/tabler/entrypoints.json"
     get_checksum: false
-    get_md5: false
+    get_checksum: false
     # get_mime: false
     get_attributes: false
   register: __stat_kimai_entrypoints
