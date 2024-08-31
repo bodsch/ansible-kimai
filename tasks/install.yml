@@ -7,20 +7,6 @@
     - kimai_dependencies | count > 0 or
       kimai_packages | count > 0
 
-# - name: get installed database package name
-#   bodsch.core.package_version:
-#     package_name: "{{ _kimai_package_mariadb_clients }}"
-#     state: installed
-#   register: package_version
-#
-# - name: remove mariadb-client-core from dependency list if it already installed
-#   ansible.builtin.set_fact:
-#     kimai_dependencies: "{{ kimai_dependencies | reject('search', 'default-mysql-client-core') | list }}"
-#   when:
-#     - package_version is defined
-#     - package_version.available is defined
-#     - package_version.available.full_version is defined
-
 - name: install dependencies
   ansible.builtin.package:
     name: "{{ kimai_dependencies }}"
@@ -167,7 +153,7 @@
       when:
         - not pip_requirements.pip.present
 
-    - name: install docker python packages  # noqa no-handler
+    - name: install kimai python packages  # noqa no-handler
       ansible.builtin.pip:
         state: present
         requirements: "{{ pip_requirements.requirements_file }}"

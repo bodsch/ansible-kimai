@@ -15,4 +15,12 @@ kimai_database:
   #server:
   #  version:
 
+kimai_trusted_proxies:
+  - "127.0.0.1"
+  - "127.0.1.1"
+
+kimai_trusted_hosts:
+  - localhost
+  - kimai.molecule.lan
+
 ...

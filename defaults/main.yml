@@ -1,6 +1,6 @@
 ---
 
-kimai_version: 2.0.29
+kimai_version: 2.20.1
 
 kimai_direct_download: false
 
@@ -25,6 +25,9 @@ kimai_env: prod
 kimai_mailer:
   from: kimai@test.tld
   url: null://null
+
+kimai_trusted_proxies: []
+kimai_trusted_hosts: []
 
 kimai_admin_user:
   username: admin

@@ -31,9 +31,7 @@ class KimaiConsole(object):
         """
         self.module = module
 
-        # self._console = module.get_bin_path('console', False)
-
-        self.command = module.params.get("command")
+        self.env = module.params.get("env")
         self.parameters = module.params.get("parameters")
         self.working_dir = module.params.get("working_dir")
         self.environment = module.params.get("environment")
@@ -56,38 +54,11 @@ class KimaiConsole(object):
                 msg = "missing bin/console"
             )
 
-        self.module.log(msg=f" command   : '{self.command}'")
         self.module.log(msg=f" parameters: '{self.parameters}'")
 
         os.chdir(self.working_dir)
 
-        if self.command == "install":
-            return self.kimai_install()
-
-        if self.command == "user_create":
-            return self.kimai_user(mode=self.command)
-
-    def kimai_version(self):
-        """
-        """
-        version_string = None
-
-        args = []
-        args.append(self._console)
-        args.append("kimai:version")
-        args.append("--no-ansi")
-
-        self.module.log(msg=f" args: '{args}'")
-
-        rc, out, err = self.__exec(args, check_rc=False)
-
-        if rc == 0:
-            pattern = re.compile(r"^Kimai (?P<version>.*) by Kevin Papst.$", re.MULTILINE)
-            version = re.search(pattern, out)
-            if version:
-                version_string = version.group('version')
-
-        return (rc == 0, version_string)
+        return self.kimai_install()
 
     def kimai_install(self):
         """
@@ -95,18 +66,26 @@ class KimaiConsole(object):
         _failed = True
         _changed = False
 
-        touch_file = f"state_{self.command}"
+        rc, version = self.kimai_version()
+
+        touch_file = "state_install"
 
         if os.path.exists(touch_file):
             return dict(
                 failed = False,
                 changed = False,
-                msg = "kimai is already installed."
+                msg = f"kimai is already in version {version} installed."
             )
 
         args = []
         args.append(self._console)
         args.append("kimai:install")
+        args.append("--no-interaction")
+        args.append("--no-ansi")
+
+        if self.env:
+            args.append("--env")
+            args.append(self.env)
 
         if self.parameters and len(self.parameters) > 0:
             args += self.parameters
@@ -133,83 +112,27 @@ class KimaiConsole(object):
             msg=_msg
         )
 
-    def kimai_user(self, mode="user_create"):
+    def kimai_version(self):
         """
         """
-        _failed = True
-        _changed = False
-
-        created_users = self.kimai_list_users()
-
-        self.module.log(msg=f"= created_users : '{created_users}'")
-
-        touch_file = f"state_{self.command}"
-
-        if os.path.exists(touch_file):
-            return dict(
-                failed = False,
-                changed = False,
-                msg = "user is already installed."
-            )
+        version_string = None
 
         args = []
         args.append(self._console)
-        args.append("kimai:user:create")
-
-        if self.parameters and len(self.parameters) > 0:
-            args += self.parameters
-
-        rc, out, err = self.__exec(args, check_rc=False)
-
-        if rc == 0:
-            from pathlib import Path
-            Path(touch_file).touch()
-
-            _failed = False
-            _changed = True
-
-            if mode == "user_create":
-                _msg = "user was successfully created."
-
-        else:
-            _msg = out
-            _failed = False
-
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            msg=_msg
-        )
-
-    def kimai_list_users(self):
-        """
-        """
-        _failed = True
-        _changed = False
-        users = []
-
-        args = []
-        args.append(self._console)
-        args.append("kimai:user:list")
-        args.append("--no-interaction")
+        args.append("kimai:version")
         args.append("--no-ansi")
 
+        self.module.log(msg=f" args: '{args}'")
+
         rc, out, err = self.__exec(args, check_rc=False)
 
         if rc == 0:
-            pattern = re.compile(r"\s+(?P<username>[a-zA-Z]+)\s+(?P<email>[a-zA-Z\@\.]+)\s+(?P<roles>[A-Z_,\ ]+)(?P<active>X)", re.MULTILINE)
+            pattern = re.compile(r"^Kimai (?P<version>.*) by Kevin Papst.$", re.MULTILINE)
+            version = re.search(pattern, out)
+            if version:
+                version_string = version.group('version')
 
-            for line in out.splitlines():
-                self.module.log(msg="line     : {}".format(line))
-                for match in re.finditer(pattern, line):
-                    result = re.search(pattern, line)
-                    users.append(result.group('username'))
-
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            users=users
-        )
+        return (rc == 0, version_string)
 
     def __exec(self, commands, check_rc=True):
         """
@@ -227,12 +150,10 @@ def main():
     """
     """
     specs = dict(
-        command=dict(
-            default="install",
-            choices=[
-                "install",
-                "user_create",
-            ]
+        env=dict(
+            required=False,
+            type=str,
+            default="prod"
         ),
         parameters=dict(
             required=False,
@@ -245,7 +166,6 @@ def main():
         ),
         environment=dict(
             required=False,
-            default="prod"
         )
     )
 

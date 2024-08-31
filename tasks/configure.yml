@@ -25,26 +25,34 @@
     mode: 0666
 
 - name: install kimai
-  kimai_console:
-    command: install
-    parameters:
-      - --env={{ kimai_env }}
-      - --no-ansi
-      - --no-interaction
+  kimai_install:
+    env: "{{ kimai_env }}"
+    # command: install
+    # parameters:
+    #   - --env={{ kimai_env }}
+    #   - --no-ansi
+    #   - --no-interaction
     working_dir: "{{ kimai_install_base_directory }}/kimai"
 
 - name: install kimai admin user
-  kimai_console:
-    command: user_create
-    parameters:
-      - --env={{ kimai_env }}
-      - --no-ansi
-      - --no-interaction
-      - "{{ kimai_admin_user.username }}"   # username
-      - "{{ kimai_admin_user.email }}"      # email
-      - ROLE_SUPER_ADMIN                    # role
-      - "{{ kimai_admin_user.password }}"   # password
+  kimai_user:
+    state: create
+    username: "{{ kimai_admin_user.username }}"
+    password: "{{ kimai_admin_user.password }}"
+    email: "{{ kimai_admin_user.email | default(omit) }}"
+    roles:
+      - ROLE_SUPER_ADMIN
     working_dir: "{{ kimai_install_base_directory }}/kimai"
+
+    # parameters:
+    #   - --env={{ kimai_env }}
+    #   - --no-ansi
+    #   - --no-interaction
+    #   - "{{ kimai_admin_user.username }}"   # username
+    #   - "{{ kimai_admin_user.email }}"      # email
+    #   - ROLE_SUPER_ADMIN                    # role
+    #   - "{{ kimai_admin_user.password }}"   # password
+    # working_dir: "{{ kimai_install_base_directory }}/kimai"
 
 - name: change rights for var directory
   ansible.builtin.file:
