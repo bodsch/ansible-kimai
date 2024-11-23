@@ -4,7 +4,7 @@ name: code linter
 
 on:
   schedule:
-    - cron: "50 3 * * 0"
+    - cron: "40 3 * * 0"
   workflow_dispatch:
     inputs:
       logLevel:
@@ -16,41 +16,88 @@ on:
           - info
           - warning
           - debug
-  push:
-    branches:
-      - 'main'
-      - 'feature/**'
-      - '!doc/**'
-    paths:
-      - "!Makefile"
-      - "!README.md"
-      - "tasks/**"
-  pull_request:
-    branches:
-      - 'main'
-      - 'feature/**'
-      - '!doc/**'
-    paths:
-      - "!Makefile"
-      - "!README.md"
-      - "tasks/**"
 
 jobs:
-  lint:
-    name: linting
+  pycodestyle:
     runs-on: ubuntu-latest
-    steps:
-      - name: 🛎 Checkout
-        uses: actions/checkout@v4
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
 
-      - name: lint
-        uses: docker://ghcr.io/github/super-linter:slim-v4
-        env:
-          DEFAULT_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GH_REGISTRY_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_ANSIBLE: true
-          # VALIDATE_MARKDOWN: true
-          VALIDATE_YAML: true
+    steps:
+      - name: check out the codebase.
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python_version }}"
+
+      - name: update pip
+        run: |
+          python3 -m pip install --upgrade pip
+
+      - name: install pycodestyle
+        run: |
+          python3 -m pip install pycodestyle
+
+      - name: run pycodestyle
+        run: |
+          pycodestyle --config=.config/pycodestyle.cfg --statistics --count --exclude=test_*.py .
+
+  yamllint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: check out the codebase.
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install yamllint
+        run: |
+          python3 -m pip install yamllint
+          python3 -m pip install ansible-lint
+
+      - name: run yamllint
+        run: |
+          yamllint .
+
+  ansible-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: check out the codebase.
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install ansible-lint
+        run: |
+          python3 -m pip install ansible-lint
+
+      - name: run ansible lint
+        run:
+          ansible-lint .
 
 ...
