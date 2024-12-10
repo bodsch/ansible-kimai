@@ -47,7 +47,7 @@
       ansible.builtin.file:
         path: "{{ kimai_remote_tmp_directory }}"
         state: directory
-        mode: 0755
+        mode: "0755"
       when:
         - not kimai_direct_download
 
@@ -55,7 +55,7 @@
       ansible.builtin.copy:
         src: "{{ kimai_local_tmp_directory }}/{{ kimai_release.file }}"
         dest: "{{ kimai_remote_tmp_directory }}/"
-        mode: 0700
+        mode: "0700"
 
     - name: create remote install directory
       ansible.builtin.file:
@@ -63,7 +63,7 @@
         path: "{{ kimai_install_base_directory }}"
         owner: "{{ kimai_owner }}"
         group: "{{ kimai_group }}"
-        mode: 0755
+        mode: "0755"
 
     - name: extract kimai archive
       ansible.builtin.unarchive:
@@ -71,7 +71,7 @@
         dest: "{{ kimai_install_base_directory }}/"
         owner: "{{ kimai_owner }}"
         group: "{{ kimai_group }}"
-        mode: 0755
+        mode: "0755"
         remote_src: true
       notify:
         - restart php-fpm
@@ -97,7 +97,7 @@
     dest: '{{ kimai_install_base_directory }}/kimai'
     owner: "{{ kimai_owner }}"
     group: "{{ kimai_group }}"
-    mode: 0755
+    mode: "0755"
     state: link
     force: true
   notify:

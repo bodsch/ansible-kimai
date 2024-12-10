@@ -39,7 +39,7 @@
   ansible.builtin.file:
     path: "{{ kimai_local_tmp_directory }}"
     state: directory
-    mode: 0750
+    mode: "0750"
 
 - name: detect the downloaded kimai archive
   become: false
@@ -88,7 +88,7 @@
         url: "{{ kimai_release.download_url }}/archive/refs/tags/{{ kimai_release.file }}"
         dest: "{{ kimai_local_tmp_directory }}/{{ kimai_release.file }}"
         checksum: "{{ __kimai_checksum | default(omit) }}"
-        mode: 0660
+        mode: "0660"
       register: _download_archive
       until: _download_archive is succeeded
       retries: 5

@@ -22,7 +22,7 @@
     dest: "{{ kimai_install_base_directory }}/kimai/.env"
     owner: "{{ kimai_owner }}"
     group: "{{ kimai_group }}"
-    mode: 0666
+    mode: "0666"
 
 - name: install kimai
   kimai_install:
@@ -60,7 +60,7 @@
     path: "{{ kimai_install_base_directory }}/kimai/var"
     owner: "{{ kimai_owner }}"
     group: "{{ kimai_group }}"
-    mode: 0755
+    mode: "0755"
     recurse: true
 
 ...
