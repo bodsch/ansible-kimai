@@ -1,15 +1,12 @@
 ---
 
-kimai_version: 2.26.0
+kimai_version: 2.29.0
 
 kimai_direct_download: false
 
 kimai_release: {}
 
 kimai_install_base_directory: /var/www
-
-kimai_owner: www-data
-kimai_group: www-data
 
 kimai_database:
   # username: kimai

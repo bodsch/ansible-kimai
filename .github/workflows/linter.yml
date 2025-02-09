@@ -55,10 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        python_version:
-          - "3.11"
-          - "3.12"
 
     steps:
       - name: check out the codebase.
@@ -69,7 +65,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v5
         with:
-          python-version: "${{ matrix.python_version }}"
+          python-version: "3.12"
 
       - name: install yamllint
         run: |

@@ -30,17 +30,18 @@ nginx_vhosts:
     listen:
       - 80
 
-    root: "{{ kimai_install_base_directory }}/kimai/public"
+    root_directory: "{{ kimai_install_base_directory }}/kimai/public"
+    root_directory_create: false
+
     index:
       - index.php
 
     logfiles:
       access:
         file: /var/log/nginx/kimai.molecule.lan/access.log
-        loglevel: main
+        loglevel: json_combined
       error:
         file: /var/log/nginx/kimai.molecule.lan/error.log
-        loglevel: debug
 
     locations:
 

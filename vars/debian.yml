@@ -1,5 +1,8 @@
 ---
 
+kimai_owner: www-data
+kimai_group: www-data
+
 php_fpm_daemon: php{{ php_version }}-fpm
 
 ...

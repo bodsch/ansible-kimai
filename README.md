@@ -28,9 +28,14 @@ Install an kimai from [sources](https://github.com/kimai/kimai).
 ### Ansible Collections
 
 - [bodsch.core](https://github.com/bodsch/ansible-collection-core)
+- [bodsch.scm](https://github.com/bodsch/ansible-collection-scm)
+- optional: [bodsch.php](https://github.com/bodsch/ansible-collection-php)
+
 
 ```bash
 ansible-galaxy collection install bodsch.core
+ansible-galaxy collection install bodsch.scm
+ansible-galaxy collection install bodsch.php
 ```
 or
 ```bash
@@ -60,16 +65,13 @@ If you want to use something stable, please use a [Tagged Version](https://githu
 ## Configuration
 
 ```yaml
-kimai_version: 2.0.29
+kimai_version: 2.29.0
 
 kimai_direct_download: false
 
 kimai_release: {}
 
 kimai_install_base_directory: /var/www
-
-kimai_owner: www-data
-kimai_group: www-data
 
 kimai_database:
   # username: kimai
