@@ -102,6 +102,6 @@ jobs:
 
       - name: run ansible lint
         run: |
-          ansible-lint --project-dir $PWD --show-relpath --exclude molecule
+          ansible-lint --project-dir $PWD --show-relpath --exclude molecule --exclude .github
 
 ...
