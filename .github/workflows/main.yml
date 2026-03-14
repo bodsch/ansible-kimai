@@ -97,10 +97,10 @@ jobs:
         image:
           - debian:12
         python_version:
-          - "3.10"
-          - "3.11"
+          - "3.12"
+          - "3.13"
         ansible-version:
-          - '8.5'
+          - '9.5'
         scenario:
           - default
 
@@ -149,10 +149,10 @@ jobs:
           - ubuntu:22.04
           - ubuntu:24.04
         python_version:
-          - "3.10"
-          - "3.11"
+          - "3.12"
+          - "3.13"
         ansible-version:
-          - '8.5'
+          - '9.5'
         scenario:
           - default
 
