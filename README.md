@@ -29,7 +29,7 @@ Install an kimai from [sources](https://github.com/kimai/kimai).
 
 - [bodsch.core](https://github.com/bodsch/ansible-collection-core)
 - [bodsch.scm](https://github.com/bodsch/ansible-collection-scm)
-- optional: [bodsch.php](https://github.com/bodsch/ansible-collection-php)
+- [bodsch.php](https://github.com/bodsch/ansible-collection-php)
 
 
 ```bash
@@ -42,12 +42,20 @@ or
 ansible-galaxy collection install --requirements-file collections.yml
 ```
 
+### Required PHP modules
+
+| Category | Modules |
+| :-----   | :-----  |
+| Absolutely necessary | curl, mbstring, zip, intl, gd, xmlrpc | 
+| Database connection (select one) | pdo_mysql, mysql | 
+| For specific apps | ldap |
+
 
 ## tested operating systems
 
 * Debian based
-    - Debian 10 / 11 / 12
-    - Ubuntu 20.04
+    - Debian 10 / 11 / 12 / 13
+    - Ubuntu 20.04 / 22.04 / 24.04
 
 ## Contribution
 

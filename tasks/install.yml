@@ -26,7 +26,7 @@
   ansible.builtin.stat:
     path: "{{ kimai_install_base_directory }}/kimai"
     get_checksum: false
-    # get_mime: false
+    get_mime: false
     get_attributes: false
   register: __stat_share_kimai
 
@@ -37,7 +37,7 @@
     path: "{{ kimai_install_base_directory }}/kimai"
   when:
     - __stat_share_kimai.stat is defined
-    - __stat_share_kimai.stat.isdir | default('true')
+    - __stat_share_kimai.stat.isdir | default('true') | bool
 
 - name: install kimai
   when:
@@ -157,7 +157,7 @@
       ansible.builtin.pip:
         state: present
         requirements: "{{ pip_requirements.requirements_file }}"
-        extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_python.version) | default(omit) }}"
+        extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_facts.python.version) | default(omit) }}"
       register: pip_install
       ignore_errors: true
       no_log: true
@@ -181,7 +181,7 @@
           ansible.builtin.pip:
             state: present
             requirements: "{{ pip_requirements.requirements_file }}"
-            extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_python.version) | default(omit) }}"
+            extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_facts.python.version) | default(omit) }}"
 
         - name: uninstall build essentials
           ansible.builtin.package:

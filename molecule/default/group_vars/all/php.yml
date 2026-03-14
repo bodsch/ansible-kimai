@@ -1,9 +1,19 @@
 ---
 
-# php_version: "{{ '7' if ansible_os_family | lower != 'redhat' else '7.3' }}"
-# php_version: "{{ '8' if ansible_os_family | lower != 'redhat' else '8.1' }}"
+_debian_defaults: &DEBIAN_DEFAULTS
+  - php-ldap
+  - php-xmlrpc
+  - php-curl
+  - php-mbstring
+  - php-zip
+  - php-intl
+  - php-gd
+  - php-mysql
 
-php_packages: "{{ ['php-ldap', 'php-xmlrpc'] if ansible_os_family | lower not in ['archlinux'] else [] }}"
+_arch_defaults: &ARCH_DEFAULTS
+  - php-zip
+
+php_packages: "{{ _debian_defaults if ansible_facts.os_family | lower == 'debian' else _arch_defaults }}"
 
 php_enable_php_fpm: true
 

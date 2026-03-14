@@ -16,12 +16,6 @@ kimai_remote_tmp_directory: "{{ kimai_cache_directory }}/{{ kimai_version }}"
 
 kimai_dependencies:
   - python3-pip
-  - php-curl
-  - php-mbstring
-  - php-zip
-  - php-intl
-  - php-gd
-  - php-mysql
 
 kimai_python_requirements:
   - name: mysqlclient
@@ -60,6 +54,6 @@ go_arch_map:
   armv7l: 'armv7'
   armv6l: 'armv6'
 
-system_architecture: "{{ go_arch_map[ansible_architecture] | default(ansible_architecture) }}"
+system_architecture: "{{ go_arch_map[ansible_facts.architecture] | default(ansible_facts.architecture) }}"
 
 ...

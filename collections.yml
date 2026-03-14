@@ -4,3 +4,4 @@ collections:
   - name: bodsch.core
   - name: bodsch.scm
   - name: bodsch.php
+  - name: bodsch.database
