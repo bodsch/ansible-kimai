@@ -8,6 +8,8 @@
       kimai_packages | count > 0
 
 - name: install dependencies
+  when:
+    - kimai_dependencies | default([]) | count > 0
   ansible.builtin.package:
     name: "{{ kimai_dependencies }}"
     state: present
@@ -141,6 +143,13 @@
     - kimai_python_requirements is defined
     - kimai_python_requirements | length > 0
   block:
+
+    - name: install python pip
+      ansible.builtin.package:
+        name:
+          - python3-pip
+        state: present
+
     - name: create pip requirements file
       bodsch.core.pip_requirements:
         name: kimai
@@ -183,10 +192,10 @@
             requirements: "{{ pip_requirements.requirements_file }}"
             extra_args: "{{ kimai_python_extra_args | default([]) | bodsch.core.python_extra_args(python_version=ansible_facts.python.version) | default(omit) }}"
 
-        - name: uninstall build essentials
-          ansible.builtin.package:
-            name: "{{ kimai_python_build_packages }}"
-            state: absent
+        # - name: uninstall build essentials
+        #   ansible.builtin.package:
+        #     name: "{{ kimai_python_build_packages }}"
+        #     state: absent
 
     - name: do facts module to get latest information
       ansible.builtin.setup:

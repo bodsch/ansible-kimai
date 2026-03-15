@@ -43,7 +43,6 @@
     roles:
       - ROLE_SUPER_ADMIN
     working_dir: "{{ kimai_install_base_directory }}/kimai"
-
     # parameters:
     #   - --env={{ kimai_env }}
     #   - --no-ansi

@@ -14,8 +14,7 @@ kimai_cache_directory: /var/cache/ansible/kimai
 
 kimai_remote_tmp_directory: "{{ kimai_cache_directory }}/{{ kimai_version }}"
 
-kimai_dependencies:
-  - python3-pip
+kimai_dependencies: []
 
 kimai_python_requirements:
   - name: mysqlclient
