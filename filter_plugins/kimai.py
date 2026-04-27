@@ -1,6 +1,5 @@
 # python 3 headers, required if submitting to Ansible
 from __future__ import (absolute_import, division, print_function)
-__metaclass__ = type
 
 from ansible.utils.display import Display
 
@@ -18,7 +17,7 @@ class FilterModule(object):
             'add_database_version': self.add_database_version,
         }
 
-    def database_string(self, data):
+    def database_string(self, data: dict):
         """
            For MySQL that would be "serverVersion=5.7" as in:
               DATABASE_URL=mysql://user:password@127.0.0.1:3306/database?charset=utf8&serverVersion=5.7
@@ -26,6 +25,8 @@ class FilterModule(object):
            For MariaDB it would be "serverVersion=mariadb-10.5.8":
               DATABASE_URL=mysql://user:password@127.0.0.1:3306/database?charset=utf8&serverVersion=mariadb-10.5.8
         """
+        display.v(f"kimai::database_string(data: {data})")
+
         dba_string = None
 
         dba_username = data.get("username")
@@ -45,7 +46,7 @@ class FilterModule(object):
 
         return dba_string
 
-    def add_database_version(self, data, dba_version):
+    def add_database_version(self, data: dict, dba_version: dict):
         """
           version:
             full: 10.6.14-MariaDB-1:10.6.14+maria~deb11-log
@@ -54,7 +55,7 @@ class FilterModule(object):
             release: 14
             suffix: MariaDB-1:10
         """
-        # display.v(f"add_database_version(self, {data}, {dba_version})")
+        display.v(f"kimai::add_database_version(data: {data}, dba_version: {dba_version})")
 
         version_data = dba_version.get("version")
 

@@ -1,172 +1,305 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# (c) 2021-2024, Bodo Schulz <bodo@boone-schulz.de>
+# (c) 2021-2026, Bodo Schulz <bodo@boone-schulz.de>
 # Apache-2.0 (see LICENSE or https://opensource.org/license/apache-2-0)
 # SPDX-License-Identifier: Apache-2.0
 
-from __future__ import absolute_import, print_function
+"""
+Ansible module ``kimai_install`` – idempotent Kimai installation trigger.
+
+This module wraps the ``kimai:install`` Symfony console command and ensures
+the command is executed at most once per Kimai installation directory.
+Idempotency is implemented by writing a local state-file (``state_install``)
+into C(working_dir) upon successful installation.
+
+State-file caveat
+-----------------
+The state-file persists across Ansible runs.  A reinstall on the same host
+requires manual deletion of the file before the next playbook run.
+
+Version detection
+-----------------
+The currently installed Kimai version is resolved via ``kimai:version``
+and included in the idempotency message so operators can identify the
+installed release at a glance.
+"""
+
+from __future__ import absolute_import, annotations, print_function
+
 import os
 import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from ansible.module_utils.basic import AnsibleModule
 
+# ---------------------------------------------------------------------------
 
-__metaclass__ = type
+DOCUMENTATION = r"""
+---
+module: kimai_install
+version_added: "0.10.0"
+author:
+  - "Bodo Schulz (@bodsch) <me+ansible@bodsch.me>"
 
-ANSIBLE_METADATA = {
-    'metadata_version': '0.1',
-    'status': ['preview'],
-    'supported_by': 'community'
-}
+short_description: Idempotent wrapper around the Kimai C(kimai:install) command.
+
+description:
+  - Runs C(bin/console kimai:install) inside the Kimai installation directory.
+  - Subsequent runs are skipped when the local state-file C(state_install)
+    exists inside C(working_dir), ensuring idempotency.
+  - The current Kimai version is detected before the install check and
+    included in the skip message for operator visibility.
+
+options:
+  env:
+    description:
+      - Symfony environment name passed via C(--env) to the console command.
+    type: str
+    required: false
+    default: prod
+
+  parameters:
+    description:
+      - Additional arguments forwarded verbatim to C(kimai:install).
+        Example: C(["--no-debug"]).
+    type: list
+    elements: str
+    required: false
+    default: []
+
+  working_dir:
+    description:
+      - Absolute path to the Kimai installation root.  The module expects
+        C(bin/console) to reside inside this directory.
+    type: str
+    required: true
+
+  environment:
+    description:
+      - Ansible-level environment dictionary (passed through by Ansible;
+        not forwarded to the Symfony console).
+    type: dict
+    required: false
+"""
+
+EXAMPLES = r"""
+- name: Install Kimai (production)
+  kimai_install:
+    working_dir: /usr/share/kimai
+
+- name: Install Kimai in staging environment
+  kimai_install:
+    working_dir: /usr/share/kimai
+    env: staging
+    parameters:
+      - "--no-debug"
+"""
+
+RETURN = r"""
+failed:
+  description: Whether the module encountered an unrecoverable error.
+  type: bool
+  returned: always
+
+changed:
+  description: Whether C(kimai:install) was executed and succeeded.
+  type: bool
+  returned: always
+
+msg:
+  description: Human-readable description of the outcome.
+  type: str
+  returned: always
+"""
+
+# ---------------------------------------------------------------------------
 
 
-class KimaiConsole(object):
+class KimaiInstall:
+    """Ansible action class for running ``kimai:install``.
+
+    The class is instantiated once per module invocation and is *not*
+    intended to be reused across multiple runs.
+
+    Attributes:
+        module: The :class:`AnsibleModule` instance provided by Ansible.
+        env: Symfony environment name forwarded to ``--env``.
+        parameters: Extra arguments forwarded to the console command.
+        working_dir: Absolute path of the Kimai installation root.
     """
-    """
-    module = None
 
-    def __init__(self, module):
-        """
+    module: AnsibleModule
+
+    def __init__(self, module: AnsibleModule) -> None:
+        """Initialise the installer from Ansible module parameters.
+
+        Args:
+            module: Fully initialised :class:`AnsibleModule` instance.
         """
         self.module = module
+        self.module.log("KimaiInstall::__init__()")
 
-        self.env = module.params.get("env")
-        self.parameters = module.params.get("parameters")
-        self.working_dir = module.params.get("working_dir")
-        self.environment = module.params.get("environment")
+        self.env: str = module.params.get("env") or "prod"
+        self.parameters: List[str] = module.params.get("parameters") or []
+        self.working_dir: str = module.params["working_dir"]
 
-    def run(self):
+        # Resolved at runtime inside :meth:`run`.
+        self._console: str = ""
+
+    # ------------------------------------------------------------------
+    # Public entry point
+    # ------------------------------------------------------------------
+
+    def run(self) -> Dict[str, Any]:
+        """Validate the environment and trigger the install sequence.
+
+        Returns:
+            A dict with at least the keys ``failed``, ``changed``, and ``msg``.
         """
-        """
-        # _failed = True
-        # _changed = False
-        # _msg = "initial message"
+        self.module.log("KimaiInstall::run()")
 
-        self._console = os.path.join(self.working_dir, 'bin', 'console')
-
-        self.module.log(msg=f" console   : '{self._console}'")
+        self._console = os.path.join(self.working_dir, "bin", "console")
 
         if not os.path.exists(self._console):
-            return dict(
-                failed = True,
-                changed = False,
-                msg = "missing bin/console"
-            )
+            return dict(failed=True, changed=False, msg="missing bin/console")
 
-        self.module.log(msg=f" parameters: '{self.parameters}'")
+        # self.module.log(msg=f" parameters: '{self.parameters}'")
 
         os.chdir(self.working_dir)
+        return self._kimai_install()
 
-        return self.kimai_install()
+    # ------------------------------------------------------------------
+    # Private command implementations
+    # ------------------------------------------------------------------
 
-    def kimai_install(self):
+    def _kimai_install(self) -> Dict[str, Any]:
+        """Execute ``kimai:install`` unless the state-file already exists.
+
+        The method first resolves the currently installed version so that
+        the skip message is informative.  The actual installation is
+        guarded by the ``state_install`` state-file.
+
+        Returns:
+            Ansible result dict.
         """
-        """
-        _failed = True
-        _changed = False
+        self.module.log("KimaiInstall::_kimai_install()")
 
-        rc, version = self.kimai_version()
-
+        _success, version = self._kimai_version()
         touch_file = "state_install"
 
         if os.path.exists(touch_file):
+            version_info = f"version {version}" if version else "an unknown version"
             return dict(
-                failed = False,
-                changed = False,
-                msg = f"kimai is already in version {version} installed."
+                failed=False,
+                changed=False,
+                msg=f"kimai is already installed ({version_info}).",
             )
 
-        args = []
-        args.append(self._console)
-        args.append("kimai:install")
-        args.append("--no-interaction")
-        args.append("--no-ansi")
+        args: List[str] = [
+            self._console,
+            "kimai:install",
+            "--no-interaction",
+            "--no-ansi",
+            "--env",
+            self.env,
+        ]
 
-        if self.env:
-            args.append("--env")
-            args.append(self.env)
+        if self.parameters:
+            args.extend(self.parameters)
 
-        if self.parameters and len(self.parameters) > 0:
-            args += self.parameters
-
-        self.module.log(msg=f" args: '{args}'")
-
-        rc, out, err = self.__exec(args, check_rc=False)
+        # self.module.log(msg=f" args: '{args}'")
+        rc, out, _ = self.__exec(args, check_rc=False)
 
         if rc == 0:
-            from pathlib import Path
             Path(touch_file).touch()
+            return dict(
+                failed=False, changed=True, msg="kimai was successfully installed."
+            )
 
-            _failed = False
-            _changed = True
+        return dict(failed=True, changed=False, msg=out)
 
-            _msg = "kimai was successfully installed."
+    def _kimai_version(self) -> Tuple[bool, Optional[str]]:
+        """Query the installed Kimai version via the console.
 
-        else:
-            _msg = out
+        Runs ``kimai:version --no-ansi`` and parses the version string
+        from the expected output format::
 
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            msg=_msg
-        )
+            Kimai 2.x.y by Kevin Papst.
 
-    def kimai_version(self):
+        Returns:
+            A 2-tuple ``(success, version_string)``.  *version_string* is
+            ``None`` when the version could not be determined.
         """
-        """
-        version_string = None
+        self.module.log("KimaiInstall::_kimai_version()")
 
-        args = []
-        args.append(self._console)
-        args.append("kimai:version")
-        args.append("--no-ansi")
+        args: List[str] = [self._console, "kimai:version", "--no-ansi"]
 
-        self.module.log(msg=f" args: '{args}'")
+        # self.module.log(msg=f" args: '{args}'")
+        rc, out, _ = self.__exec(args, check_rc=False)
 
-        rc, out, err = self.__exec(args, check_rc=False)
-
+        version_string: Optional[str] = None
         if rc == 0:
-            pattern = re.compile(r"^Kimai (?P<version>.*) by Kevin Papst.$", re.MULTILINE)
-            version = re.search(pattern, out)
-            if version:
-                version_string = version.group('version')
+            pattern = re.compile(
+                r"^Kimai (?P<version>\S+) by Kevin Papst\.$",
+                re.MULTILINE,
+            )
+            match = pattern.search(out)
+            if match:
+                version_string = match.group("version")
 
         return (rc == 0, version_string)
 
-    def __exec(self, commands, check_rc=True):
-        """
-          execute shell program
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def __exec(
+        self,
+        commands: List[str],
+        check_rc: bool = True,
+    ) -> Tuple[int, str, str]:
+        """Run an external command via the Ansible module helper.
+
+        Args:
+            commands: Argv list to execute.
+            check_rc: When ``True`` Ansible raises on non-zero exit codes.
+
+        Returns:
+            A 3-tuple ``(rc, stdout, stderr)``.
         """
         rc, out, err = self.module.run_command(commands, check_rc=check_rc)
         if rc != 0:
             self.module.log(msg=f"  out: '{out}'")
             self.module.log(msg=f"  err: '{err}'")
-
         return rc, out, err
 
 
-def main():
-    """
-    """
-    specs = dict(
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Module entry point.  Called by Ansible at runtime."""
+    specs: Dict[str, Any] = dict(
         env=dict(
             required=False,
             type=str,
-            default="prod"
+            default="prod",
         ),
         parameters=dict(
             required=False,
             type=list,
-            default=[]
+            elements="str",
+            default=[],
         ),
         working_dir=dict(
             required=True,
-            type=str
+            type=str,
         ),
         environment=dict(
             required=False,
-        )
+        ),
     )
 
     module = AnsibleModule(
@@ -174,16 +307,14 @@ def main():
         supports_check_mode=False,
     )
 
-    kc = KimaiConsole(module)
-    result = kc.run()
+    ki = KimaiInstall(module)
+    result = ki.run()
 
     module.log(msg=f"= result : '{result}'")
-
     module.exit_json(**result)
 
 
-# import module snippets
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 

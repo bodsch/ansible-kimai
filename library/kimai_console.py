@@ -1,252 +1,401 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# (c) 2021-2024, Bodo Schulz <bodo@boone-schulz.de>
+# (c) 2021-2026, Bodo Schulz <bodo@boone-schulz.de>
 # Apache-2.0 (see LICENSE or https://opensource.org/license/apache-2-0)
 # SPDX-License-Identifier: Apache-2.0
 
-from __future__ import absolute_import, print_function
+"""
+Ansible module ``kimai_console`` – generic Kimai CLI dispatcher.
+
+This module provides a thin, command-dispatching wrapper around the
+Symfony ``bin/console`` binary shipped with Kimai.  It is intentionally
+kept minimal; for richer parameter sets and proper per-entity idempotency
+use the dedicated sibling modules ``kimai_install`` and ``kimai_user``
+instead.
+
+Supported commands
+------------------
+install
+    Runs ``kimai:install``.  Idempotency is guaranteed via a local
+    state-file (``state_install``).
+user_create
+    Runs ``kimai:user:create``.  Idempotency is guaranteed via a local
+    state-file whose name is derived from the command string.
+
+State-file caveat
+-----------------
+State-files are written to ``working_dir`` and persist across Ansible
+runs.  They survive even if Kimai is later removed, which means a
+reinstall on the same host requires manual deletion of the state-file.
+"""
+
+from __future__ import absolute_import, annotations, print_function
+
 import os
 import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from ansible.module_utils.basic import AnsibleModule
 
+# ---------------------------------------------------------------------------
 
-__metaclass__ = type
+DOCUMENTATION = r"""
+---
+module: kimai_console
+version_added: "0.10.0"
+author:
+  - "Bodo Schulz (@bodsch) <me+ansible@bodsch.me>"
 
-ANSIBLE_METADATA = {
-    'metadata_version': '0.1',
-    'status': ['preview'],
-    'supported_by': 'community'
-}
+short_description: Generic wrapper around the Kimai bin/console CLI.
+
+description:
+  - Dispatches one of several Kimai Symfony-console sub-commands.
+  - Idempotency is implemented via local state-files in C(working_dir).
+  - For production use prefer the dedicated modules C(kimai_install) and
+    C(kimai_user), which expose richer option sets.
+
+options:
+  command:
+    description:
+      - The Kimai console sub-command to execute.
+      - C(install) maps to C(kimai:install).
+      - C(user_create) maps to C(kimai:user:create).
+    type: str
+    default: install
+    choices: [install, user_create]
+
+  parameters:
+    description:
+      - Additional positional or flag arguments forwarded verbatim to the
+        console command.  E.g. C(["--no-debug"]) or
+        C(["admin", "admin@example.com", "ROLE_SUPER_ADMIN", "secret"]).
+    type: list
+    elements: str
+    required: false
+    default: []
+
+  working_dir:
+    description:
+      - Absolute path to the Kimai installation directory.  The module
+        expects C(bin/console) to exist inside this directory.
+    type: str
+    required: true
+
+  environment:
+    description:
+      - Symfony environment name (currently informational only; pass
+        C(--env) via C(parameters) to influence the console command).
+    type: str
+    required: false
+    default: prod
+"""
+
+EXAMPLES = r"""
+- name: Install Kimai
+  kimai_console:
+    command: install
+    working_dir: /usr/share/kimai
+    parameters:
+      - "--no-debug"
+
+- name: Create initial admin user
+  kimai_console:
+    command: user_create
+    working_dir: /usr/share/kimai
+    parameters:
+      - "admin"
+      - "admin@example.com"
+      - "ROLE_SUPER_ADMIN"
+      - "supersecret"
+"""
+
+RETURN = r"""
+failed:
+  description: Whether the module encountered an unrecoverable error.
+  type: bool
+  returned: always
+
+changed:
+  description: Whether a state change was performed on the target system.
+  type: bool
+  returned: always
+
+msg:
+  description: Human-readable description of the outcome.
+  type: str
+  returned: always
+"""
+
+# ---------------------------------------------------------------------------
+
+# Pre-compiled pattern for parsing ``kimai:user:list`` tabular output.
+#
+# Expected line format (Kimai >= 2.x):
+#   " admin      admin@example.com   ROLE_SUPER_ADMIN, ROLE_USER   Yes      kimai"
+#
+# Column notes:
+#   - Username : word chars, dots, hyphens
+#   - Email    : liberal practical set
+#   - Roles    : comma-separated ROLE_* constants with optional spaces;
+#                matched lazily so the "Yes|No" anchor stops the group
+#   - Active   : literal "Yes" or "No" (replaces the old "X" marker)
+#
+# Separator lines ("--- --- ---") and the header line ("Username  Email …")
+# never match because they lack a valid email token.
+
+_USER_LIST_RE = re.compile(
+    r"^\s+(?P<username>[\w.\-]+)"
+    r"\s+(?P<email>[\w.+\-@]+)"
+    r"\s+(?P<roles>[A-Z_,\s]+?)"
+    r"\s+(?P<active>Yes|No)"
+    r"\b",
+    re.MULTILINE,
+)
 
 
-class KimaiConsole(object):
+class KimaiConsole:
+    """Ansible action class for dispatching Kimai console commands.
+
+    The class is instantiated once per module invocation and is *not*
+    intended to be reused across multiple runs.
+
+    Attributes:
+        module: The :class:`AnsibleModule` instance provided by Ansible.
+        command: The sub-command to execute (``install`` or ``user_create``).
+        parameters: Extra arguments forwarded to the console command.
+        working_dir: Absolute path of the Kimai installation root.
+        environment: Symfony environment identifier (informational).
     """
-    """
-    module = None
 
-    def __init__(self, module):
-        """
+    module: AnsibleModule
+
+    def __init__(self, module: AnsibleModule) -> None:
+        """Initialise the dispatcher from Ansible module parameters.
+
+        Args:
+            module: Fully initialised :class:`AnsibleModule` instance.
         """
         self.module = module
+        self.module.log("KimaiConsole::__init__()")
 
-        # self._console = module.get_bin_path('console', False)
+        self.command: str = module.params["command"]
+        self.parameters: List[str] = module.params.get("parameters") or []
+        self.working_dir: str = module.params["working_dir"]
+        self.environment: str = module.params.get("environment", "prod")
 
-        self.command = module.params.get("command")
-        self.parameters = module.params.get("parameters")
-        self.working_dir = module.params.get("working_dir")
-        self.environment = module.params.get("environment")
+        # Resolved at runtime inside :meth:`run`.
+        self._console: str = ""
 
-    def run(self):
+    # ------------------------------------------------------------------
+    # Public entry point
+    # ------------------------------------------------------------------
+
+    def run(self) -> Dict[str, Any]:
+        """Dispatch the requested sub-command and return the Ansible result dict.
+
+        Returns:
+            A dict with at least the keys ``failed``, ``changed``, and ``msg``.
         """
-        """
-        # _failed = True
-        # _changed = False
-        # _msg = "initial message"
-
-        self._console = os.path.join(self.working_dir, 'bin', 'console')
-
-        self.module.log(msg=f" console   : '{self._console}'")
+        self._console = os.path.join(self.working_dir, "bin", "console")
 
         if not os.path.exists(self._console):
-            return dict(
-                failed = True,
-                changed = False,
-                msg = "missing bin/console"
-            )
+            return dict(failed=True, changed=False, msg="missing bin/console")
 
-        self.module.log(msg=f" command   : '{self.command}'")
-        self.module.log(msg=f" parameters: '{self.parameters}'")
-
+        # self.module.log(msg=f" command   : '{self.command}'")
+        # self.module.log(msg=f" parameters: '{self.parameters}'")
         os.chdir(self.working_dir)
 
-        if self.command == "install":
-            return self.kimai_install()
+        dispatch: Dict[str, Any] = {
+            "install": self._kimai_install,
+            "user_create": lambda: self._kimai_user(mode="user_create"),
+        }
 
-        if self.command == "user_create":
-            return self.kimai_user(mode=self.command)
+        handler = dispatch.get(self.command)
+        if handler is None:
+            return dict(
+                failed=True,
+                changed=False,
+                msg=f"Unknown command: '{self.command}'",
+            )
 
-    def kimai_version(self):
+        return handler()
+
+    # ------------------------------------------------------------------
+    # Private command implementations
+    # ------------------------------------------------------------------
+
+    def _kimai_version(self) -> Tuple[bool, Optional[str]]:
+        """Query the installed Kimai version via the console.
+
+        Returns:
+            A 2-tuple ``(success, version_string)``.  *version_string* is
+            ``None`` when the version could not be parsed.
         """
-        """
-        version_string = None
+        args = [self._console, "kimai:version", "--no-ansi"]
 
-        args = []
-        args.append(self._console)
-        args.append("kimai:version")
-        args.append("--no-ansi")
+        # self.module.log(msg=f" args: '{args}'")
+        rc, out, _ = self.__exec(args, check_rc=False)
 
-        self.module.log(msg=f" args: '{args}'")
-
-        rc, out, err = self.__exec(args, check_rc=False)
-
+        version_string: Optional[str] = None
         if rc == 0:
-            pattern = re.compile(r"^Kimai (?P<version>.*) by Kevin Papst.$", re.MULTILINE)
-            version = re.search(pattern, out)
-            if version:
-                version_string = version.group('version')
+            pattern = re.compile(
+                r"^Kimai (?P<version>\S+) by Kevin Papst\.$",
+                re.MULTILINE,
+            )
+            match = pattern.search(out)
+            if match:
+                version_string = match.group("version")
 
         return (rc == 0, version_string)
 
-    def kimai_install(self):
-        """
-        """
-        _failed = True
-        _changed = False
+    def _kimai_install(self) -> Dict[str, Any]:
+        """Execute ``kimai:install`` unless the state-file is present.
 
+        Returns:
+            Ansible result dict.
+        """
         touch_file = f"state_{self.command}"
 
         if os.path.exists(touch_file):
-            return dict(
-                failed = False,
-                changed = False,
-                msg = "kimai is already installed."
-            )
+            return dict(failed=False, changed=False, msg="kimai is already installed.")
 
-        args = []
-        args.append(self._console)
-        args.append("kimai:install")
+        args = [self._console, "kimai:install"] + self.parameters
 
-        if self.parameters and len(self.parameters) > 0:
-            args += self.parameters
-
-        self.module.log(msg=f" args: '{args}'")
-
-        rc, out, err = self.__exec(args, check_rc=False)
+        # self.module.log(msg=f" args: '{args}'")
+        rc, out, _ = self.__exec(args, check_rc=False)
 
         if rc == 0:
-            from pathlib import Path
             Path(touch_file).touch()
+            return dict(
+                failed=False, changed=True, msg="kimai was successfully installed."
+            )
 
-            _failed = False
-            _changed = True
+        return dict(failed=True, changed=False, msg=out)
 
-            _msg = "kimai was successfully installed."
+    def _kimai_user(self, mode: str = "user_create") -> Dict[str, Any]:
+        """Execute ``kimai:user:create`` unless the state-file is present.
 
-        else:
-            _msg = out
+        The method first queries the existing user list so that the
+        information is available in the module log; actual idempotency
+        is controlled by the state-file.
 
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            msg=_msg
-        )
+        Args:
+            mode: Currently only ``"user_create"`` is supported.
 
-    def kimai_user(self, mode="user_create"):
+        Returns:
+            Ansible result dict.
         """
-        """
-        _failed = True
-        _changed = False
+        self.module.log(f"KimaiConsole::_kimai_user(mode: {mode})")
 
-        created_users = self.kimai_list_users()
-
+        created_users = self._kimai_list_users()
         self.module.log(msg=f"= created_users : '{created_users}'")
 
         touch_file = f"state_{self.command}"
 
         if os.path.exists(touch_file):
+            return dict(failed=False, changed=False, msg="user is already installed.")
+
+        args = [self._console, "kimai:user:create"] + self.parameters
+
+        rc, out, _ = self.__exec(args, check_rc=False)
+
+        if rc == 0:
+            Path(touch_file).touch()
             return dict(
-                failed = False,
-                changed = False,
-                msg = "user is already installed."
+                failed=False,
+                changed=True,
+                msg=(
+                    "user was successfully created."
+                    if mode == "user_create"
+                    else "command executed."
+                ),
             )
 
-        args = []
-        args.append(self._console)
-        args.append("kimai:user:create")
+        # rc != 0 → propagate failure; do *not* silence the error.
+        return dict(failed=True, changed=False, msg=out)
 
-        if self.parameters and len(self.parameters) > 0:
-            args += self.parameters
+    def _kimai_list_users(self) -> Dict[str, Any]:
+        """Return a list of all registered Kimai usernames.
 
-        rc, out, err = self.__exec(args, check_rc=False)
+        Parses the tabular output of ``kimai:user:list``.
+
+        Returns:
+            A dict with keys ``failed`` (bool), ``changed`` (bool), and
+            ``users`` (list of username strings).
+        """
+        self.module.log("KimaiConsole::_kimai_list_users()")
+
+        args = [
+            self._console,
+            "kimai:user:list",
+            "--no-interaction",
+            "--no-ansi",
+        ]
+
+        rc, out, _ = self.__exec(args, check_rc=False)
+
+        users: List[str] = []
 
         if rc == 0:
-            from pathlib import Path
-            Path(touch_file).touch()
-
-            _failed = False
-            _changed = True
-
-            if mode == "user_create":
-                _msg = "user was successfully created."
-
-        else:
-            _msg = out
-            _failed = False
-
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            msg=_msg
-        )
-
-    def kimai_list_users(self):
-        """
-        """
-        _failed = True
-        _changed = False
-        users = []
-
-        args = []
-        args.append(self._console)
-        args.append("kimai:user:list")
-        args.append("--no-interaction")
-        args.append("--no-ansi")
-
-        rc, out, err = self.__exec(args, check_rc=False)
-
-        if rc == 0:
-            pattern = re.compile(r"\s+(?P<username>[a-zA-Z]+)\s+(?P<email>[a-zA-Z\@\.]+)\s+(?P<roles>[A-Z_,\ ]+)(?P<active>X)", re.MULTILINE)
-
             for line in out.splitlines():
-                self.module.log(msg="line     : {}".format(line))
-                for match in re.finditer(pattern, line):
-                    result = re.search(pattern, line)
-                    users.append(result.group('username'))
+                self.module.log(msg=f"line: {line}")
+                match = _USER_LIST_RE.search(line)
+                if match:
+                    users.append(match.group("username"))
 
-        return dict(
-            failed=_failed,
-            changed=_changed,
-            users=users
-        )
+        return dict(failed=(rc != 0), changed=False, users=users)
 
-    def __exec(self, commands, check_rc=True):
-        """
-          execute shell program
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def __exec(
+        self,
+        commands: List[str],
+        check_rc: bool = True,
+    ) -> Tuple[int, str, str]:
+        """Run an external command via the Ansible module helper.
+
+        Args:
+            commands: Argv list to execute.
+            check_rc: When ``True`` Ansible raises on non-zero exit codes.
+
+        Returns:
+            A 3-tuple ``(rc, stdout, stderr)``.
         """
         rc, out, err = self.module.run_command(commands, check_rc=check_rc)
         if rc != 0:
             self.module.log(msg=f"  out: '{out}'")
             self.module.log(msg=f"  err: '{err}'")
-
         return rc, out, err
 
 
-def main():
-    """
-    """
-    specs = dict(
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Module entry point.  Called by Ansible at runtime."""
+    specs: Dict[str, Any] = dict(
         command=dict(
             default="install",
-            choices=[
-                "install",
-                "user_create",
-            ]
+            choices=["install", "user_create"],
         ),
         parameters=dict(
             required=False,
             type=list,
-            default=[]
+            elements="str",
+            default=[],
         ),
         working_dir=dict(
             required=True,
-            type=str
+            type=str,
         ),
         environment=dict(
             required=False,
-            default="prod"
-        )
+            default="prod",
+        ),
     )
 
     module = AnsibleModule(
@@ -258,12 +407,10 @@ def main():
     result = kc.run()
 
     module.log(msg=f"= result : '{result}'")
-
     module.exit_json(**result)
 
 
-# import module snippets
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 
