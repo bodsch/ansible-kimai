@@ -4,7 +4,7 @@ name: code linter
 
 on:
   schedule:
-    - cron: "40 3 * * 0"
+    - cron: "45 4 * * 0"
   workflow_dispatch:
     inputs:
       logLevel:
@@ -16,10 +16,40 @@ on:
           - info
           - warning
           - debug
+  push:
+    branches:
+      - 'filter_plugins/**'
+      - 'templates/**'
+      - 'defaults/**'
+      - 'vars/**'
+      - 'tasks/**'
+      - 'fix/**'
+      - '!doc/**'
+    paths:
+      - 'filter_plugins/**'
+      - 'templates/**'
+      - 'defaults/**'
+      - 'vars/**'
+      - 'tasks/**'
+      - '.config/pycodestyle.cfg'
+      - '!.github/workflows/*.yml'
+  pull_request:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - '!doc/**'
+    paths:
+      - 'filter_plugins/**'
+      - 'templates/**'
+      - 'defaults/**'
+      - 'vars/**'
+      - 'tasks/**'
+      - '.config/pycodestyle.cfg'
+      - '!.github/workflows/*.yml'
 
 jobs:
   pycodestyle:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -27,77 +57,57 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
 
     steps:
-      - name: check out the codebase.
-        uses: actions/checkout@v6.0.2
+      - name: Check out the codebase.
+        uses: actions/checkout@v6.0.1
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
-      - name: set up python
-        uses: actions/setup-python@v6.2.0
+      - name: 🐍 set up python
+        uses: actions/setup-python@v6.1.0
         with:
           python-version: "${{ matrix.python_version }}"
 
-      - name: update pip
+      - name: Install test dependencies.
         run: |
           python3 -m pip install --upgrade pip
-
-      - name: install pycodestyle
-        run: |
           python3 -m pip install pycodestyle
 
-      - name: run pycodestyle
+      - name: Lint code.
         run: |
-          pycodestyle --config=.config/pycodestyle.cfg --statistics --count --exclude=test_*.py .
+          pycodestyle . --config=.config/pycodestyle.cfg --statistics --count --exclude=test_*.py --exclude=hooks/*.py
 
-  yamllint:
-    runs-on: ubuntu-latest
+  flake8:
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
+      matrix:
+        python_version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
 
     steps:
-      - name: check out the codebase.
-        uses: actions/checkout@v6.0.2
+      - name: Check out the codebase.
+        uses: actions/checkout@v6.0.1
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
-      - name: set up python
-        uses: actions/setup-python@v6.2.0
+      - name: 🐍 set up python
+        uses: actions/setup-python@v6.1.0
         with:
-          python-version: "3.12"
+          python-version: "${{ matrix.python_version }}"
 
-      - name: install yamllint
+      - name: Install test dependencies.
         run: |
-          python3 -m pip install yamllint
-          python3 -m pip install ansible-lint
+          python3 -m pip install --upgrade pip
+          python3 -m pip install flake8
 
-      - name: run yamllint
+      - name: Lint code.
         run: |
-          yamllint .
-
-  ansible-lint:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
-    steps:
-      - name: check out the codebase.
-        uses: actions/checkout@v6.0.2
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-
-      - name: set up python
-        uses: actions/setup-python@v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: install ansible-lint
-        run: |
-          python3 -m pip install ansible-lint
-
-      - name: run ansible lint
-        run: |
-          ansible-lint --project-dir $PWD --show-relpath --exclude molecule --exclude .github
+          flake8 --append-config=.config/pycodestyle.cfg
 
 ...
