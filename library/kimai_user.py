@@ -578,26 +578,26 @@ def main() -> None:
         ),
         username=dict(
             required=True,
-            type=str,
+            type="str",
         ),
         password=dict(
             required=False,
-            type=str,
+            type="str",
             no_log=True,
         ),
         email=dict(
             required=False,
-            type=str,
+            type="str",
         ),
         roles=dict(
             required=False,
-            type=list,
+            type="list",
             elements="str",
             default=[],
         ),
         working_dir=dict(
             required=True,
-            type=str,
+            type="str",
         ),
         environment=dict(
             required=False,

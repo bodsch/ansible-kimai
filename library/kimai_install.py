@@ -284,18 +284,18 @@ def main() -> None:
     specs: Dict[str, Any] = dict(
         env=dict(
             required=False,
-            type=str,
+            type="str",
             default="prod",
         ),
         parameters=dict(
             required=False,
-            type=list,
+            type="list",
             elements="str",
             default=[],
         ),
         working_dir=dict(
             required=True,
-            type=str,
+            type="str",
         ),
         environment=dict(
             required=False,
