@@ -73,7 +73,7 @@ If you want to use something stable, please use a [Tagged Version](https://githu
 ## Configuration
 
 ```yaml
-kimai_version: 2.29.0
+kimai_version: 2.56.0
 
 kimai_direct_download: false
 
@@ -96,12 +96,19 @@ kimai_mailer:
   from: kimai@test.tld
   url: null://null
 
+kimai_trusted_proxies: []
+kimai_trusted_hosts: []
+
 kimai_admin_user:
   username: admin
   password: admin0815
   email: admin@test.tld
 
 kimai_secret: change_this_to_something_unique
+
+kimai_php_daemon:
+  restart: true
+  name: "{{ php_fpm_daemon }}"
 ```
 
 ----
