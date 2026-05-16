@@ -120,7 +120,6 @@ testinfra_hosts = infra_hosts(host_name="instance")
 # _facts = local_facts(host=host, fact="nextcloud")
 
 
-
 def test_directories(host, get_vars):
 
     base_dir = get_vars.get("kimai_install_base_directory")
