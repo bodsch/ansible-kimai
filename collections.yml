@@ -2,6 +2,9 @@
 
 collections:
   - name: bodsch.core
-  - name: bodsch.scm
+    version: ">=2.13.2"
+  - name: bodsch.scm 
+    version: ">=1.9.2"
   - name: bodsch.php
+    version: ">=1.3.0"
   - name: bodsch.database
