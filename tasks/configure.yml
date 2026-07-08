@@ -3,18 +3,21 @@
 - name: merge kimai configuration between defaults and custom
   ansible.builtin.set_fact:
     kimai_database: "{{ kimai_defaults_database | combine(kimai_database, recursive=True) }}"
+  no_log: true
 
-- name: Get MySQL version with non-default credentials
-  community.mysql.mysql_info:
+- name: get database information
+  ansible.mysql.mysql_info:
     login_user: "{{ kimai_database.username }}"
     login_password: "{{ kimai_database.password }}"
     login_host: "{{ kimai_database.hostname }}"
     filter: version
+  no_log: true
   register: __db_version
 
-- name: merge kimai configuration between defaults and custom
+- name: add database information for connection string
   ansible.builtin.set_fact:
     kimai_database: "{{ kimai_database | add_database_version(__db_version) }}"
+  no_log: true
 
 - name: create initial setup configuration file
   ansible.builtin.template:

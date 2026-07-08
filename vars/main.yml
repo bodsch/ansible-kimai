@@ -16,9 +16,9 @@ kimai_remote_tmp_directory: "{{ kimai_cache_directory }}/{{ kimai_version }}"
 
 kimai_dependencies: []
 
-kimai_python_requirements:
-  - name: mysqlclient
-    # version: 2.2.0
+kimai_python_requirements: []
+  # - name: mysqlclient
+  #   # version: 2.2.0
 
 kimai_python_build_packages:
   - libmariadb-dev

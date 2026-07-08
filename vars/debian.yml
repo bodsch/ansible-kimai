@@ -3,6 +3,9 @@
 kimai_owner: www-data
 kimai_group: www-data
 
+kimai_dependencies:
+  - python3-pymysql
+
 php_fpm_daemon: php{{ php_version }}-fpm
 
 ...

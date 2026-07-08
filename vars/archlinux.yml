@@ -5,12 +5,8 @@ kimai_group: http
 
 kimai_dependencies:
   - python-pip
-  # - php-curl
-  # - php-mbstring
-  # - php-zip
-  # - php-intl
+  - python-pymysql
   - php-gd
-  # - php-mysql
 
 php_fpm_daemon: php-fpm{{ php_major_version }}
 

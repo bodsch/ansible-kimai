@@ -114,18 +114,20 @@
   register: __stat_kimai_entrypoints
 
 - name: update composer
-  community.general.composer:
+  bodsch.php.composer:
     command: update
     working_dir: "{{ kimai_install_base_directory }}/kimai"
+  no_log: true
   when:
     - __stat_kimai_entrypoints is defined
     - not __stat_kimai_entrypoints.stat.exists | default('false')
 
 - name: download and installs all libs and dependencies outlined in the {{ kimai_install_base_directory }}
-  community.general.composer:
+  bodsch.php.composer:
     command: install
     arguments: --optimize-autoloader --no-interaction
     working_dir: "{{ kimai_install_base_directory }}/kimai"
+  no_log: true
   when:
     - __stat_kimai_entrypoints is defined
     - not __stat_kimai_entrypoints.stat.exists | default('false')

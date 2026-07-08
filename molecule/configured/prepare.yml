@@ -53,6 +53,7 @@
   gather_facts: true
 
   roles:
+    # - role: snapd
     - role: bodsch.database.mariadb
 
 - name: prepare instance container
@@ -60,5 +61,6 @@
   gather_facts: true
 
   roles:
+    - role: bodsch.nginx
     - role: bodsch.php.fpm
     - role: bodsch.php.composer
