@@ -210,7 +210,7 @@ class KimaiInstall:
             args.extend(self.parameters)
 
         # self.module.log(msg=f" args: '{args}'")
-        rc, out, _ = self.__exec(args, check_rc=False)
+        rc, out, err = self.__exec(args, check_rc=False)
 
         if rc == 0:
             Path(touch_file).touch()
@@ -218,7 +218,9 @@ class KimaiInstall:
                 failed=False, changed=True, msg="kimai was successfully installed."
             )
 
-        return dict(failed=True, changed=False, msg=out)
+        msg = out + err
+
+        return dict(failed=True, changed=False, msg=msg)
 
     def _kimai_version(self) -> Tuple[bool, Optional[str]]:
         """Query the installed Kimai version via the console.
